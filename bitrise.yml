@@ -1,0 +1,29 @@
+format_version: 1.0.0
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+
+workflows:
+  test:
+    steps:
+    - script:
+        title: Switch working dir to ./test
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -e
+            ORIGINAL_DIR="$(pwd)"
+            envman add --key ORIGINAL_DIR --value "$ORIGINAL_DIR"
+    - path::./:
+        title: Step Test
+        inputs:
+        - path: ./test/
+    - script:
+        title: Check working directory
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -e
+            echo "BITRISE_SOURCE_DIR: $BITRISE_SOURCE_DIR"
+            echo "ORIGINAL_DIR/test: $ORIGINAL_DIR/test"
+            if [[ $BITRISE_SOURCE_DIR != "$ORIGINAL_DIR/test" ]]; then
+              exit 1
+            fi

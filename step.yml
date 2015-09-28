@@ -1,0 +1,36 @@
+title: "Step Change Source Directory"
+summary: Set bitrise source directory (BITRISE_SOURCE_DIR) to specified path.
+description: ""
+website: https://github.com/gkiki90/steps-change-working-directory
+source_code_url: https://github.com/gkiki90/steps-change-working-directory
+support_url: https://github.com/gkiki90/steps-change-working-directory/issues
+host_os_tags:
+  - osx-10.10
+project_type_tags: []
+type_tags: []
+is_requires_admin_user: false
+is_always_run: false
+is_skippable: false
+dependencies: []
+run_if: ""
+inputs:
+  - path:
+    opts:
+      title: "Source Directory"
+      summary: "Source Directory folder path."
+      description: ""
+      is_expand: true
+      is_required: true
+      is_dont_change_value: false
+      value_options: []
+  - is_create_path: "true"
+    opts:
+      title: "Create path if doesn't exist"
+      summary: "Create path if doesn't exist."
+      description: ""
+      is_expand: false
+      is_required: false
+      is_dont_change_value: false
+      value_options:
+      - "true"
+      - "false"
