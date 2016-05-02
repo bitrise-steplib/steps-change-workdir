@@ -16,7 +16,6 @@ workflows:
             envman add --key ORIGINAL_DIR --value "$ORIGINAL_DIR"
     - path::./:
         title: Step Test
-        run_if: "true"
         inputs:
         - path: ./test/
         - is_create_path: "true"
