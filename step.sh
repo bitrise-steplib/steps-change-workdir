@@ -22,3 +22,4 @@ expanded_target_path="$(pwd)"
 
 echo "=> Changing working directory to ${expanded_target_path}"
 envman add --key BITRISE_SOURCE_DIR --value "${expanded_target_path}"
+envman add --key PWD --value "${expanded_target_path}"
