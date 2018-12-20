@@ -13,12 +13,14 @@ source_code_url: https://github.com/bitrise-io/steps-change-workdir
 support_url: https://github.com/bitrise-io/steps-change-workdir/issues
 host_os_tags:
   - osx-10.10
-project_type_tags: []
-type_tags: []
+
+type_tags:
+- utility
+
 is_requires_admin_user: false
 is_always_run: false
 is_skippable: false
-dependencies: []
+
 inputs:
   - path:
     opts:
