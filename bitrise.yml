@@ -31,8 +31,6 @@ workflows:
               exit 1
             fi
 
-  # ----------------------------------------------------------------
-  # --- workflows to Share this step into a Step Library
   audit-this-step:
     steps:
     - script:
