@@ -1,6 +1,6 @@
 title: "Change Working Directory for subsequent Steps"
 summary: |-
-  Set bitrise source directory (BITRISE_SOURCE_DIR) to a specified path.
+  Set bitrise source directory (`BITRISE_SOURCE_DIR`) to a specified path.
 description: |-
   By setting `$BITRISE_SOURCE_DIR` to the specified path every subsequent
   Step will run with this path as its base Working Directory.
