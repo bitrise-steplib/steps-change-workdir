@@ -1,13 +1,26 @@
 title: "Change Working Directory for subsequent Steps"
-summary: |-
-  Set bitrise source directory (`BITRISE_SOURCE_DIR`) to a specified path.
+summary: Changes Bitrise source directory (`BITRISE_SOURCE_DIR`) to a specified path.
 description: |-
+  This Step changes Bitrise source directory (`BITRISE_SOURCE_DIR`) to a specified path.
+
   By setting `$BITRISE_SOURCE_DIR` to the specified path every subsequent
   Step will run with this path as its base Working Directory.
 
   Useful for projects which expect a fixed project/workspace hierarchy,
   like `Go` which requires the project inside a "workspace" with
   the structure: `$GOPATH/src/domain/user/project`.
+
+  ### Configuring the Step
+
+  1. Set the new **Directory path**.
+  2. Enable or disable the creation of the **Directory path** in case it doesn't exist yet.
+
+  ### Troubleshooting
+  Please make sure that you set a correct and existing **Directory path**. You must define this value.
+
+  ### Related Steps
+  - [Change value in file](https://www.bitrise.io/integrations/steps/change-value)
+
 website: https://github.com/bitrise-io/steps-change-workdir
 source_code_url: https://github.com/bitrise-io/steps-change-workdir
 support_url: https://github.com/bitrise-io/steps-change-workdir/issues
@@ -25,7 +38,7 @@ inputs:
   - path:
     opts:
       title: "Directory path"
-      summary: "New working directory path"
+      summary: "The new Working Directory path."
       description: ""
       is_expand: true
       is_required: true
@@ -33,8 +46,8 @@ inputs:
       value_options: []
   - is_create_path: "true"
     opts:
-      title: "Create path if doesn't exist?"
-      summary: "Enable/disable the creation of the directory path in case it doesn't exist yet."
+      title: "Create the specified path if it doesn't exist?"
+      summary: "Enable or disable the creation of the new **Directory path** in case it doesn't exist yet."
       description: ""
       is_expand: false
       is_required: true
