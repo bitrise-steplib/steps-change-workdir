@@ -1,41 +1,21 @@
-format_version: 6
+format_version: "11"
 default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
 
-workflows:
-  test:
-    before_run:
-    - audit-this-step
-    steps:
-    - script:
-        title: Switch working dir to ./test
-        inputs:
-        - content: |-
-            #!/bin/bash
-            set -e
-            ORIGINAL_DIR="$(pwd)"
-            envman add --key ORIGINAL_DIR --value "$ORIGINAL_DIR"
-    - path::./:
-        title: Step Test
-        inputs:
-        - path: ./test/
-        - is_create_path: "true"
-    - script:
-        title: Check working directory
-        inputs:
-        - content: |-
-            #!/bin/bash
-            set -e
-            echo "BITRISE_SOURCE_DIR: $BITRISE_SOURCE_DIR"
-            echo "ORIGINAL_DIR/test: $ORIGINAL_DIR/test"
-            if [[ $BITRISE_SOURCE_DIR != "$ORIGINAL_DIR/test" ]]; then
-              exit 1
-            fi
+# include:
+# - repository: steps-check
+#   branch: master
+#   path: steps.bitrise.yml
 
-  audit-this-step:
+workflows:
+
+  # check: included from steps-check/steps.bitrise.yml
+
+  e2e:
     steps:
-    - script:
+    - git::https://github.com/bitrise-steplib/steps-check.git:
         inputs:
-        - content: |-
-            #!/bin/bash
-            set -ex
-            stepman audit --step-yml ./step.yml
+        - workflow: e2e
+
+  generate_readme:
+    steps:
+    - git::https://github.com/bitrise-steplib/steps-readme-generator.git@main: {}

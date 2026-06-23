@@ -1,2 +1,3 @@
 .bitrise*
-test/
+_tmp
+README.md.backup
