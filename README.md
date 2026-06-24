@@ -9,7 +9,7 @@ Changes the Working Directory for all subsequent Steps to a specified path.
 
 This Step changes the base Working Directory for every subsequent Step in the Workflow to the specified path.
 
-Useful for projects which expect a fixed project/workspace hierarchy, like `Go` which requires the project inside a "workspace" with the structure: `$GOPATH/src/domain/user/project`.
+Useful, for example, for projects like monorepos where the Bitrise workflow primarily takes place in an `iOS` or `android` subdirectory.
 
 ### Configuring the Step
 
@@ -43,7 +43,11 @@ You can also run this step directly with [Bitrise CLI](https://github.com/bitris
 
 <details>
 <summary>Outputs</summary>
-There are no outputs defined in this step
+
+| Environment Variable | Description |
+| --- | --- |
+| `BITRISE_SOURCE_DIR` | The expanded absolute path that the Step set as the base Working Directory.  Bitrise uses `BITRISE_SOURCE_DIR` as the Working Directory for every subsequent Step, so changing it is how this Step takes effect. |
+| `PWD` | The expanded absolute path, exported as `PWD` so that subsequent Steps and scripts see the new Working Directory. |
 </details>
 
 ## 🙋 Contributing

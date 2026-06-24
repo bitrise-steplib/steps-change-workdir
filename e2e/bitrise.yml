@@ -25,10 +25,20 @@ workflows:
         - content: |-
             #!/bin/bash
             set -ex
-            echo "Working directory: $(pwd)"
-            echo "Target directory:  $TARGET_DIR"
+            echo "Working directory:  $(pwd)"
+            echo "Target directory:   $TARGET_DIR"
+            echo "BITRISE_SOURCE_DIR: $BITRISE_SOURCE_DIR"
+            echo "PWD:                $PWD"
             if [[ "$(pwd)" != "$TARGET_DIR" ]] ; then
               echo "Subsequent Step is not running in the target directory!"
+              exit 1
+            fi
+            if [[ "$BITRISE_SOURCE_DIR" != "$TARGET_DIR" ]] ; then
+              echo "BITRISE_SOURCE_DIR output was not set to the target directory!"
+              exit 1
+            fi
+            if [[ "$PWD" != "$TARGET_DIR" ]] ; then
+              echo "PWD output was not set to the target directory!"
               exit 1
             fi
 
@@ -55,14 +65,24 @@ workflows:
         - content: |-
             #!/bin/bash
             set -ex
-            echo "Working directory: $(pwd)"
-            echo "Target directory:  $TARGET_DIR"
+            echo "Working directory:  $(pwd)"
+            echo "Target directory:   $TARGET_DIR"
+            echo "BITRISE_SOURCE_DIR: $BITRISE_SOURCE_DIR"
+            echo "PWD:                $PWD"
             if [ ! -d "$TARGET_DIR" ] ; then
               echo "Target directory was not created!"
               exit 1
             fi
             if [[ "$(pwd)" != "$TARGET_DIR" ]] ; then
               echo "Subsequent Step is not running in the target directory!"
+              exit 1
+            fi
+            if [[ "$BITRISE_SOURCE_DIR" != "$TARGET_DIR" ]] ; then
+              echo "BITRISE_SOURCE_DIR output was not set to the target directory!"
+              exit 1
+            fi
+            if [[ "$PWD" != "$TARGET_DIR" ]] ; then
+              echo "PWD output was not set to the target directory!"
               exit 1
             fi
 
