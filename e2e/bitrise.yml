@@ -1,0 +1,119 @@
+format_version: "11"
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+
+workflows:
+  test_change_workdir:
+    description: Tests that subsequent Steps run in the specified existing directory.
+    steps:
+    - script:
+        title: Create a random temp directory and record its absolute path
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -ex
+            target="$(cd "$(mktemp -d)" && pwd)"
+            envman add --key TARGET_DIR --value "$target"
+    - path::./:
+        title: Step Test
+        run_if: "true"
+        inputs:
+        - path: $TARGET_DIR
+        - is_create_path: "false"
+    - script:
+        title: Verify the subsequent Step runs in the target directory
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -ex
+            echo "Working directory:  $(pwd)"
+            echo "Target directory:   $TARGET_DIR"
+            echo "BITRISE_SOURCE_DIR: $BITRISE_SOURCE_DIR"
+            echo "PWD:                $PWD"
+            if [[ "$(pwd)" != "$TARGET_DIR" ]] ; then
+              echo "Subsequent Step is not running in the target directory!"
+              exit 1
+            fi
+            if [[ "$BITRISE_SOURCE_DIR" != "$TARGET_DIR" ]] ; then
+              echo "BITRISE_SOURCE_DIR output was not set to the target directory!"
+              exit 1
+            fi
+            if [[ "$PWD" != "$TARGET_DIR" ]] ; then
+              echo "PWD output was not set to the target directory!"
+              exit 1
+            fi
+
+  test_create_path:
+    description: Tests that the step creates the directory when is_create_path is true.
+    steps:
+    - script:
+        title: Pick a non-existent path inside a random temp directory
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -ex
+            base="$(cd "$(mktemp -d)" && pwd)"
+            envman add --key TARGET_DIR --value "$base/created-by-step"
+    - path::./:
+        title: Step Test
+        run_if: "true"
+        inputs:
+        - path: $TARGET_DIR
+        - is_create_path: "true"
+    - script:
+        title: Verify the directory was created and the subsequent Step runs in it
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -ex
+            echo "Working directory:  $(pwd)"
+            echo "Target directory:   $TARGET_DIR"
+            echo "BITRISE_SOURCE_DIR: $BITRISE_SOURCE_DIR"
+            echo "PWD:                $PWD"
+            if [ ! -d "$TARGET_DIR" ] ; then
+              echo "Target directory was not created!"
+              exit 1
+            fi
+            if [[ "$(pwd)" != "$TARGET_DIR" ]] ; then
+              echo "Subsequent Step is not running in the target directory!"
+              exit 1
+            fi
+            if [[ "$BITRISE_SOURCE_DIR" != "$TARGET_DIR" ]] ; then
+              echo "BITRISE_SOURCE_DIR output was not set to the target directory!"
+              exit 1
+            fi
+            if [[ "$PWD" != "$TARGET_DIR" ]] ; then
+              echo "PWD output was not set to the target directory!"
+              exit 1
+            fi
+
+  test_missing_path_fails:
+    description: Tests that the step fails when the path does not exist and is_create_path is false.
+    steps:
+    - script:
+        title: Run step expecting failure, verify exit code
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -x # Do not set -e: the inner bitrise run is expected to fail
+            bitrise run --config e2e/bitrise.yml _missing_path_utility
+            if [ $? -ne 1 ] ; then
+              echo "Workflow was expected to fail but did not."
+              exit 1
+            fi
+
+  _missing_path_utility:
+    steps:
+    - script:
+        title: Pick a non-existent path inside a random temp directory
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -ex
+            base="$(cd "$(mktemp -d)" && pwd)"
+            envman add --key TARGET_DIR --value "$base/does-not-exist"
+    - path::./:
+        title: Step Test with a non-existent path
+        run_if: "true"
+        inputs:
+        - path: $TARGET_DIR
+        - is_create_path: "false"
