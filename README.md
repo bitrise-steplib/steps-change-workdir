@@ -39,6 +39,7 @@ You can also run this step directly with [Bitrise CLI](https://github.com/bitris
 | --- | --- | --- | --- |
 | `path` | The path to set as the base Working Directory for every subsequent Step. It is resolved to an absolute path before being applied. | required |  |
 | `is_create_path` | When set to `true`, the Step creates the directory (including parent directories) if it does not exist yet. When set to `false`, the Step fails if the directory is missing. | required | `true` |
+| `use_sudo` | When enabled, the Step retries creating the directory with `sudo` if it hits a permission error.  This is required on stacks where the Step runs as the non-root user and the directory must be created inside a `root`-owned parent directory. Disable this if `sudo` is unavailable in your environment or you want permission errors to fail the Step directly. | required | `true` |
 </details>
 
 <details>

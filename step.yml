@@ -49,6 +49,18 @@ inputs:
     value_options:
     - "true"
     - "false"
+- use_sudo: "true"
+  opts:
+    title: Use sudo when elevated permissions are required
+    summary: Retry creating the directory with `sudo` if a permission error occurs.
+    description: |-
+      When enabled, the Step retries creating the directory with `sudo` if it hits a permission error.
+
+      This is required on stacks where the Step runs as the non-root user and the directory must be created inside a `root`-owned parent directory. Disable this if `sudo` is unavailable in your environment or you want permission errors to fail the Step directly.
+    is_required: true
+    value_options:
+    - "true"
+    - "false"
 
 outputs:
 - BITRISE_SOURCE_DIR:

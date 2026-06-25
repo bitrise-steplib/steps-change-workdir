@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
+	"strings"
 
 	"github.com/bitrise-io/go-steputils/v2/export"
 	"github.com/bitrise-io/go-steputils/v2/stepconf"
@@ -22,12 +26,14 @@ const (
 type Input struct {
 	Path         string `env:"path,required"`
 	IsCreatePath bool   `env:"is_create_path,opt[true,false]"`
+	UseSudo      bool   `env:"use_sudo,opt[true,false]"`
 }
 
 // Config holds validated step configuration.
 type Config struct {
 	path         string
 	isCreatePath bool
+	useSudo      bool
 }
 
 // Step changes the working directory for subsequent steps.
@@ -37,16 +43,18 @@ type Step struct {
 	pathChecker  pathutil.PathChecker
 	pathModifier pathutil.PathModifier
 	exporter     export.Exporter
+	cmdFactory   command.Factory
 }
 
 // NewStep creates a Step with injected dependencies.
-func NewStep(inputParser stepconf.InputParser, logger log.Logger, pathChecker pathutil.PathChecker, pathModifier pathutil.PathModifier, exporter export.Exporter) Step {
+func NewStep(inputParser stepconf.InputParser, logger log.Logger, pathChecker pathutil.PathChecker, pathModifier pathutil.PathModifier, exporter export.Exporter, cmdFactory command.Factory) Step {
 	return Step{
 		inputParser:  inputParser,
 		logger:       logger,
 		pathChecker:  pathChecker,
 		pathModifier: pathModifier,
 		exporter:     exporter,
+		cmdFactory:   cmdFactory,
 	}
 }
 
@@ -60,6 +68,7 @@ func (s Step) ProcessConfig() (Config, error) {
 	return Config{
 		path:         input.Path,
 		isCreatePath: input.IsCreatePath,
+		useSudo:      input.UseSudo,
 	}, nil
 }
 
@@ -76,7 +85,7 @@ func (s Step) Run(cfg Config) (string, error) {
 		}
 
 		s.logger.Printf("Directory (%s) does not exist, creating it...", cfg.path)
-		if err := os.MkdirAll(cfg.path, 0755); err != nil {
+		if err := s.createDir(cfg.path, cfg.useSudo); err != nil {
 			return "", fmt.Errorf("failed to create directory (%s): %w", cfg.path, err)
 		}
 	}
@@ -87,6 +96,31 @@ func (s Step) Run(cfg Config) (string, error) {
 	}
 
 	return absPath, nil
+}
+
+// createDir creates the directory (including parents), falling back to an
+// elevated mkdir (when useSudo is set) if the step lacks permission. On stacks
+// where the step runs as a non-root user, creating a directory inside a
+// root-owned parent requires sudo. `-n` prevents sudo from blocking on a
+// password prompt.
+func (s Step) createDir(path string, useSudo bool) error {
+	err := os.MkdirAll(path, 0755)
+	if err == nil {
+		return nil
+	}
+	if !useSudo || !errors.Is(err, fs.ErrPermission) {
+		return err
+	}
+
+	s.logger.Warnf("Permission denied creating %s, retrying with sudo", path)
+	var stderr bytes.Buffer
+	cmd := s.cmdFactory.Create("sudo", []string{"-n", "mkdir", "-p", path}, &command.Opts{
+		Stderr: &stderr,
+	})
+	if runErr := cmd.Run(); runErr != nil {
+		return fmt.Errorf("elevated directory creation failed (%s): %w", strings.TrimSpace(stderr.String()), runErr)
+	}
+	return nil
 }
 
 // ExportOutputs sets BITRISE_SOURCE_DIR (and PWD) so subsequent steps run in the new directory.
@@ -109,7 +143,7 @@ func run() int {
 	envRepository := env.NewRepository()
 	inputParser := stepconf.NewInputParser(envRepository)
 	cmdFactory := command.NewFactory(envRepository)
-	step := NewStep(inputParser, logger, pathutil.NewPathChecker(), pathutil.NewPathModifier(), export.NewExporter(cmdFactory, fileutil.NewFileManager()))
+	step := NewStep(inputParser, logger, pathutil.NewPathChecker(), pathutil.NewPathModifier(), export.NewExporter(cmdFactory, fileutil.NewFileManager()), cmdFactory)
 
 	cfg, err := step.ProcessConfig()
 	if err != nil {
