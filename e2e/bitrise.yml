@@ -1,66 +1,55 @@
 format_version: "11"
 default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
 
-workflows:
-  test_change_workdir:
-    description: Tests that subsequent Steps run in the specified existing directory.
+step_bundles:
+  # Picks a target path inside a random temp directory and exports it as
+  # TARGET_DIR. With a child_dir_name, TARGET_DIR is a non-existent child of the
+  # temp dir; leave it empty to use the (existing) temp dir itself. Set
+  # root_owned_parent to "true" to make the parent root-owned and not writable
+  # by the current user, forcing the step to use its sudo fallback.
+  setup:
+    inputs:
+    - root_owned_parent: "false"
+    - child_dir_name: created-by-step
     steps:
     - script:
-        title: Create a random temp directory and record its absolute path
-        inputs:
-        - content: |-
-            #!/bin/bash
-            set -ex
-            target="$(cd "$(mktemp -d)" && pwd)"
-            envman add --key TARGET_DIR --value "$target"
-    - path::./:
-        title: Step Test
-        run_if: "true"
-        inputs:
-        - path: $TARGET_DIR
-        - is_create_path: "false"
-    - script:
-        title: Verify the subsequent Step runs in the target directory
-        inputs:
-        - content: |-
-            #!/bin/bash
-            set -ex
-            echo "Working directory:  $(pwd)"
-            echo "Target directory:   $TARGET_DIR"
-            echo "BITRISE_SOURCE_DIR: $BITRISE_SOURCE_DIR"
-            echo "PWD:                $PWD"
-            if [[ "$(pwd)" != "$TARGET_DIR" ]] ; then
-              echo "Subsequent Step is not running in the target directory!"
-              exit 1
-            fi
-            if [[ "$BITRISE_SOURCE_DIR" != "$TARGET_DIR" ]] ; then
-              echo "BITRISE_SOURCE_DIR output was not set to the target directory!"
-              exit 1
-            fi
-            if [[ "$PWD" != "$TARGET_DIR" ]] ; then
-              echo "PWD output was not set to the target directory!"
-              exit 1
-            fi
-
-  test_create_path:
-    description: Tests that the step creates the directory when is_create_path is true.
-    steps:
-    - script:
-        title: Pick a non-existent path inside a random temp directory
+        title: Prepare target directory path
         inputs:
         - content: |-
             #!/bin/bash
             set -ex
             base="$(cd "$(mktemp -d)" && pwd)"
-            envman add --key TARGET_DIR --value "$base/created-by-step"
+            if [ -n "$child_dir_name" ] ; then
+              target="$base/$child_dir_name"
+            else
+              target="$base"
+            fi
+            if [ "$root_owned_parent" == "true" ] ; then
+              # Use numeric IDs for portability: gid 0 is `root` on Linux but `wheel` on macOS.
+              sudo chown 0:0 "$base"
+              sudo chmod 755 "$base"
+            fi
+            envman add --key TARGET_DIR --value "$target"
+
+  # Runs the step under test against TARGET_DIR.
+  run_step:
+    inputs:
+    - is_create_path: "true"
+    - use_sudo: "true"
+    steps:
     - path::./:
         title: Step Test
         run_if: "true"
         inputs:
         - path: $TARGET_DIR
-        - is_create_path: "true"
+        - is_create_path: $is_create_path
+        - use_sudo: $use_sudo
+
+  # Asserts TARGET_DIR exists and that subsequent steps run in it.
+  verify:
+    steps:
     - script:
-        title: Verify the directory was created and the subsequent Step runs in it
+        title: Verify the directory exists and the subsequent Step runs in it
         inputs:
         - content: |-
             #!/bin/bash
@@ -70,7 +59,7 @@ workflows:
             echo "BITRISE_SOURCE_DIR: $BITRISE_SOURCE_DIR"
             echo "PWD:                $PWD"
             if [ ! -d "$TARGET_DIR" ] ; then
-              echo "Target directory was not created!"
+              echo "Target directory does not exist!"
               exit 1
             fi
             if [[ "$(pwd)" != "$TARGET_DIR" ]] ; then
@@ -86,34 +75,92 @@ workflows:
               exit 1
             fi
 
-  test_missing_path_fails:
-    description: Tests that the step fails when the path does not exist and is_create_path is false.
+  # Runs a utility workflow that is expected to fail and asserts it does.
+  # Set skip_if_root to "true" for cases that can only fail as a non-root user.
+  expect_failure:
+    inputs:
+    - workflow: ""
+    - skip_if_root: "false"
     steps:
     - script:
-        title: Run step expecting failure, verify exit code
+        title: Run workflow expecting failure, verify exit code
         inputs:
         - content: |-
             #!/bin/bash
             set -x # Do not set -e: the inner bitrise run is expected to fail
-            bitrise run --config e2e/bitrise.yml _missing_path_utility
+            if [ "$skip_if_root" == "true" ] && [ "$(id -u)" -eq 0 ] ; then
+              echo "Running as root: cannot exercise the non-root permission failure. Skipping."
+              exit 0
+            fi
+            bitrise run --config e2e/bitrise.yml "$workflow"
             if [ $? -ne 1 ] ; then
-              echo "Workflow was expected to fail but did not."
+              echo "Workflow ($workflow) was expected to fail but did not."
               exit 1
             fi
 
+workflows:
+  test_change_workdir:
+    description: Tests that subsequent Steps run in the specified existing directory.
+    steps:
+    - bundle::setup:
+        inputs:
+        - child_dir_name: ""
+    - bundle::run_step:
+        inputs:
+        - is_create_path: "false"
+    - bundle::verify: {}
+
+  test_create_path:
+    description: Tests that the step creates the directory when is_create_path is true.
+    steps:
+    - bundle::setup:
+        inputs:
+        - child_dir_name: created-by-test-create-path
+    - bundle::run_step: {}
+    - bundle::verify: {}
+
+  test_create_path_in_root_owned_parent_with_sudo:
+    description: Tests that the step creates the directory inside a root-owned parent via the sudo fallback. On stacks where the step runs as a non-root user, creating a directory inside a root-owned parent requires elevated privileges.
+    steps:
+    - bundle::setup:
+        inputs:
+        - root_owned_parent: "true"
+        - child_dir_name: created-by-sudo-test
+    - bundle::run_step:
+        inputs:
+        - use_sudo: "true"
+    - bundle::verify: {}
+
+  test_missing_path_fails:
+    description: Tests that the step fails when the path does not exist and is_create_path is false.
+    steps:
+    - bundle::expect_failure:
+        inputs:
+        - workflow: _missing_path_utility
+
   _missing_path_utility:
     steps:
-    - script:
-        title: Pick a non-existent path inside a random temp directory
+    - bundle::setup:
         inputs:
-        - content: |-
-            #!/bin/bash
-            set -ex
-            base="$(cd "$(mktemp -d)" && pwd)"
-            envman add --key TARGET_DIR --value "$base/does-not-exist"
-    - path::./:
-        title: Step Test with a non-existent path
-        run_if: "true"
+        - child_dir_name: missing-path-does-not-exist
+    - bundle::run_step:
         inputs:
-        - path: $TARGET_DIR
         - is_create_path: "false"
+
+  test_no_sudo_root_owned_parent_fails:
+    description: Tests that the step fails when creating a directory inside a root-owned parent while use_sudo is false, since the non-root user cannot create it without elevated privileges.
+    steps:
+    - bundle::expect_failure:
+        inputs:
+        - workflow: _no_sudo_utility
+        - skip_if_root: "true"
+
+  _no_sudo_utility:
+    steps:
+    - bundle::setup:
+        inputs:
+        - root_owned_parent: "true"
+        - child_dir_name: created-by-no-sudo-test
+    - bundle::run_step:
+        inputs:
+        - use_sudo: "false"
